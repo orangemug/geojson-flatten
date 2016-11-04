@@ -1,13 +1,21 @@
-function flatten(gj) {
+function flatten(gj, parent) {
     switch ((gj && gj.type) || null) {
         case 'FeatureCollection':
-            gj.features = gj.features.reduce(function(mem, feature) {
-                return mem.concat(flatten(feature));
-            }, []);
-            return gj;
+          var features = gj.features.reduce(function(mem, feature) {
+            return mem.concat(flatten(feature, gj));
+          }, []);
+
+          // Flatten feature collections 
+          if(parent && parent.type === "FeatureCollection") {
+            return features;
+          }
+          else {
+            gj.features = features;
+          }
+          return gj;
         case 'Feature':
             if (!gj.geometry) return gj;
-            return flatten(gj.geometry).map(function(geom) {
+            return flatten(gj.geometry, gj).map(function(geom) {
                 return {
                     type: 'Feature',
                     properties: JSON.parse(JSON.stringify(gj.properties)),
@@ -27,7 +35,9 @@ function flatten(gj) {
                 return { type: 'LineString', coordinates: _ };
             });
         case 'GeometryCollection':
-            return gj.geometries.map(flatten).reduce(function(memo, geoms) {
+            return gj.geometries.map(function(geometry) {
+              return flatten(geometry, gj);
+            }).reduce(function(memo, geoms) {
                 return memo.concat(geoms);
             }, []);
         case 'Point':
